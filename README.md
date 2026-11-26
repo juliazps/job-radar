@@ -18,7 +18,7 @@
 
 ## 💎 Proposta de valor
 
-> Em cidade pequena, vaga boa de Dados/BI aparece pouco e some rápido — quem checa o board duas vezes por dia perde para quem checou na primeira hora. **JobRadar** substitui essa checagem manual: varre **9 fontes** (as principais a cada **3 horas**, as secundárias uma vez por dia), filtra por cargo, cidade, mercado e idioma em três níveis de confiança, pontua cada vaga por relevância e notifica no Telegram — de graça, sem servidor próprio, 24 horas por dia.
+> Em cidade pequena, vaga boa de Dados/BI aparece pouco e some rápido — quem checa o board duas vezes por dia perde para quem checou na primeira hora. **JobRadar** substitui essa checagem manual: varre **11 fontes** (as principais a cada **3 horas**, as secundárias uma vez por dia), filtra por cargo, cidade, mercado e idioma em três níveis de confiança, pontua cada vaga por relevância e notifica no Telegram — de graça, sem servidor próprio, 24 horas por dia.
 
 A escassez que justifica o projeto está medida no próprio banco: das **3.624 vagas** já processadas, **108 (3,0%)** ficam numa das nove cidades-alvo. O resto é remoto ou está fora da regra. Procurar isso à mão significa varrer 33 vagas para achar uma.
 
@@ -30,7 +30,7 @@ Entre 07 de agosto e 03 de outubro de 2026 — 58 dias — o sistema processou *
 |---|---|
 | 📊 Vagas processadas (deduplicadas) | **3.624** |
 | 🧪 Testes automatizados (CI a cada push) | **652** |
-| 🌎 Fontes ativas | **9** |
+| 🌎 Fontes ativas | **11** |
 | 🏙️ Cidades-alvo + remoto | **9 + remoto** |
 | ⏱️ Frequência de checagem | **a cada 3h** |
 | ⏳ Duração de um ciclo completo | **~26 min** (os dois perfis) |
@@ -174,7 +174,7 @@ JobRadar/
 │   └── database.py              ← SQLite: dedup, fila do digest, metadados
 ├── notifier/
 │   └── telegram.py              ← notificação individual, digest, botão 👍/👎
-├── scrapers/                    ← um módulo por fonte (12 módulos, 9 ativos)
+├── scrapers/                    ← um módulo por fonte (14 módulos, 11 ativos)
 ├── tests/                       ← 652 casos em 23 arquivos, roda em CI a cada push
 ├── data/
 │   └── jobs.db                  ← estado: dedup, rodízio de termos, fila do digest
@@ -234,6 +234,7 @@ Registrados de propósito — problema documentado é problema que alguém pode 
 | **GeekHunter não informa data de publicação** | O card não traz data, nem no container. Então `publicacao_antiga` nunca barra vaga dessa fonte, e anúncio velho pode chegar como novo. Consertar exige uma requisição por vaga — é decisão de custo, não bug. |
 | **O alerta de fonte morta está calibrado para fonte grande** | O limiar de 3 ciclos vazios veio da morte da Gupy, que traz centenas por ciclo. A WeWorkRemotely traz 4 num dia bom e 0 nos outros: em 03/10 ela disparou o alerta e voltou 7 horas depois. Decidido manter o limiar; o conserto está desenhado no comentário (limiar por fonte). |
 | **Fontes secundárias rendem pouco** | Catho, GeekHunter, 99Jobs e Senior somam menos de 2% das vagas. Funcionam — só não têm volume no nicho buscado. Mantidas porque o critério de remoção é estar quebrada, não render pouco. |
+| **Remotar e InfoJobs entraram sem histórico de produção** | Medidas em 26/11 com o filtro real e contra o banco de produção, de fora do GitHub Actions: Remotar **123 aprovadas em 531 (23,2%), 103 inéditas**; InfoJobs 1,7% na busca geral e 6,1% na listagem home office. Das sete fontes avaliadas na mesma rodada, cinco ficaram de fora com o motivo registrado em `core/perfis.py` (vagas.com.br 0 aprovadas, BNE 403, Jobconvo sem busca pública, ProgramaThor e Coodesh sem resultado utilizável). Critério de permanência escrito antes do primeiro ciclo: 3 inéditas aprovadas em 14 dias, ou sai. |
 | **A API da Sólides também mente** | `count = 0` na primeira página faz a paginação parar, e esse zero nem sempre é verdade: num ciclo a fonte caiu de ~400 para 70 vagas, e minutos depois a mesma API respondia 209, 133 e 516 vagas para os termos que tinham voltado zero. No dia seguinte foram nove respostas **504**, quase todas já na página 1. Mitigado pela segunda passada, que repete termo com `count = 0`, erro de rede, status ≠ 200 ou resposta não-JSON. **Resultado medido:** 20 vagas inéditas no primeiro ciclo e zero nos oito seguintes. Mantida por decisão da autora, com o número registrado no código. |
 | **O botão 👍/👎 nunca foi usado** | O mecanismo está pronto e instrumentado, e o relatório de precisão sabe ler o feedback — mas em 3.624 vagas não há **um único** voto registrado. Enquanto isso continuar, a precisão por fonte é estimada pelo funil, não pela opinião de quem recebe. |
 | **O filtro lê só o título** | Vaga de BI com nome comercial (ex: "Analista Comercial" com Power BI na descrição) escapa. É o preço de manter o ruído perto de zero, e está instrumentado no log para virar decisão com número. |

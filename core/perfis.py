@@ -52,10 +52,12 @@ from scrapers.geekhunter import GeekHunterScraper
 from scrapers.gupy import GupyScraper
 from scrapers.indeed import IndeedScraper
 from scrapers.indeed_intl import IndeedIntlScraper
+from scrapers.infojobs import InfoJobsScraper
 from scrapers.itjobs import ITJobsScraper
 from scrapers.jobs99 import Jobs99Scraper
 from scrapers.linkedin import LinkedInScraper
 from scrapers.linkedin_intl import LinkedInIntlScraper
+from scrapers.remotar import RemotarScraper
 from scrapers.senior import SeniorScraper
 from scrapers.solides import SolidesScraper
 from scrapers.weworkremotely_intl import WeWorkRemotelyIntlScraper
@@ -253,6 +255,33 @@ _SCRAPERS_BR = [
     # volume de vaga de Dados que o projeto hoje descarta por geografia.
     # Sondagem que produziu tudo isto: testar_senior.py.
     DefinicaoScraper(SeniorScraper, FREQUENCIA_BAIXA),      # 0,3%, mas 4s e cobre cidade
+    # Remotar e InfoJobs — entram em 26/11/2026, depois de avaliar SETE sites
+    # com avaliar_fonte.py + medição com o filtro REAL deste perfil, contra o
+    # jobs.db de produção (inédita = id e chave_secundaria fora do banco):
+    #
+    #   Remotar        531 únicas, 123 aprovadas (23,2%), 103 inéditas, 5s
+    #   InfoJobs       geral 1,7% + home office 6,1%; 6 inéditas, ~5s
+    #   vagas.com.br   202 únicas, 0 aprovadas
+    #   BNE            HTTP 403 (anti-bot) já na primeira requisição
+    #   Jobconvo       sem busca pública entre empresas — cada empresa tem a
+    #                  sua página de carreiras (mesmo motivo do Revelo)
+    #   ProgramaThor   a busca ignora o termo; só vaga de desenvolvimento
+    #   Coodesh        lista montada em JS, 0 vaga no HTML
+    #
+    # Remotar é o maior rendimento do projeto (LinkedIn: ~8,5%) e as inéditas
+    # são recentes (98 de 103 em novembro) e de ATSs que nenhuma outra fonte
+    # cobre. Ver docstrings de scrapers/remotar.py e scrapers/infojobs.py.
+    #
+    # FREQUENCIA_ALTA nas duas: sem navegador, segundos por ciclo, e vaga
+    # remota boa some rápido — rodar uma vez por dia perderia o ponto do
+    # projeto. O risco é o de sempre (IP de datacenter do Actions; só foram
+    # testadas fora dele), e o alerta de fonte morta já cobre esse caso.
+    #
+    # CRITÉRIO DE PERMANÊNCIA, escrito ANTES do primeiro resultado em
+    # produção: descontada a carga inicial, se em 14 dias a fonte não trouxer
+    # 3 vagas inéditas aprovadas, sai.
+    DefinicaoScraper(RemotarScraper, FREQUENCIA_ALTA),      # 23,2% medido, API, 5s
+    DefinicaoScraper(InfoJobsScraper, FREQUENCIA_ALTA),     # 1,7% geral + 6,1% home office
 ]
 
 PERFIL_BR = Perfil(
