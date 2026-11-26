@@ -4,7 +4,7 @@ import os
 from contextlib import contextmanager
 
 from core.config import DB_PATH
-from core.job import _normalizar
+from core.job import calcular_chave_secundaria
 
 
 def _garantir_pasta():
@@ -44,10 +44,10 @@ def _garantir_coluna_chave_secundaria(conn):
         conn.execute("ALTER TABLE vagas_vistas ADD COLUMN chave_secundaria TEXT")
 
     linhas_nulas = conn.execute(
-        "SELECT id, titulo, empresa FROM vagas_vistas WHERE chave_secundaria IS NULL"
+        "SELECT id, titulo, empresa, local FROM vagas_vistas WHERE chave_secundaria IS NULL"
     ).fetchall()
-    for id_, titulo, empresa in linhas_nulas:
-        chave = f"{_normalizar(empresa or '')}|{_normalizar(titulo or '')}"
+    for id_, titulo, empresa, local in linhas_nulas:
+        chave = calcular_chave_secundaria(empresa, titulo, local)
         conn.execute(
             "UPDATE vagas_vistas SET chave_secundaria = ? WHERE id = ?",
             (chave, id_),

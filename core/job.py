@@ -14,6 +14,44 @@ def _normalizar(texto: str) -> str:
     return "".join(c for c in sem_acento if not unicodedata.combining(c))
 
 
+# Nomes que NÃO identificam empresa nenhuma — ver Job.chave_secundaria.
+# Normalizados (minúsculo, sem acento). Lista fechada de propósito, tirada
+# do jobs.db e das fontes: "La Anónima" (rede de supermercados argentina)
+# está no banco e NÃO entra — casar por substring "anonim" a pegaria.
+_EMPRESAS_GENERICAS = frozenset({
+    "",
+    "confidencial",
+    "empresa confidencial",
+    "confidential",
+    "confidential company",
+    "confidential careers",
+    "anonimo",
+    "anonima",
+    "empresa anonima",
+    "nao informado",
+    "nao informada",
+    "nao divulgado",
+    "nao divulgada",
+})
+# Todas as genéricas viram o MESMO marcador na chave: "Empresa Confidencial"
+# no LinkedIn e "Confidencial" no InfoJobs, mesmo título e local, ainda são
+# reconhecidas como a mesma vaga.
+_EMPRESA_GENERICA = "~generica"
+
+
+def calcular_chave_secundaria(empresa: str, titulo: str, local: str) -> str:
+    """Fórmula ÚNICA da chave de dedup secundária — ver
+    Job.chave_secundaria pro porquê. Função solta (não só a property) porque
+    o backfill de database.py calcula a chave de linha do banco, sem Job.
+    Antes eram duas cópias da fórmula; mudar uma e esquecer a outra faria o
+    histórico e as vagas novas gerarem chaves que nunca casam."""
+    empresa_norm = _normalizar(empresa or "").strip()
+    titulo_norm = _normalizar(titulo or "")
+    if empresa_norm in _EMPRESAS_GENERICAS:
+        return f"{_EMPRESA_GENERICA}|{titulo_norm}|{_normalizar(local or '').strip()}"
+    return f"{empresa_norm}|{titulo_norm}"
+
+
 def _contem_termo(termo: str, texto: str, aceitar_plural: bool = False) -> bool:
     """Substring com borda de palavra, não substring cru.
 
@@ -1152,8 +1190,29 @@ class Job:
         registros pra 46 pares distintos). Empresa+título normalizados
         (minúsculo, sem acento) captura isso mesmo com pequena variação de
         formatação entre sites.
+
+        EMPRESA GENÉRICA ("Confidencial", "Não informada"...) também leva o
+        LOCAL na chave. MEDIDO (26/11, uma busca no InfoJobs): 41 de 230
+        vagas eram confidenciais, e "confidencial|analista de dados" saiu
+        para TRÊS vagas diferentes — Curitiba, Rio de Janeiro e São José dos
+        Pinhais. Sem o local, a primeira era notificada e as outras duas
+        sumiam em silêncio: ja_vista() achava a chave que a primeira acabara
+        de gravar. No banco isso não aparece como colisão justamente porque
+        a vaga suprimida nunca é gravada — só dá pra ver medindo a busca.
+
+        O local não entra pra empresa NOMEADA: lá ele atrapalharia, porque
+        cada site escreve o local de um jeito ("Fortaleza - CE" vs
+        "Fortaleza, Ceará, Brasil") e a mesma vaga deixaria de ser
+        reconhecida entre fontes. Pra genérica a troca vale: no pior caso a
+        mesma vaga confidencial chega duas vezes, de sites diferentes; sem o
+        local, vaga diferente se perdia.
+
+        Linha antiga do banco com empresa genérica continua com a chave sem
+        local — não casa mais com vaga nova por chave, só por `id`. Efeito:
+        uma vaga confidencial já vista em OUTRO site pode ser notificada uma
+        vez a mais. Aceito em troca de não perder vaga.
         """
-        return f"{_normalizar(self.empresa)}|{_normalizar(self.titulo)}"
+        return calcular_chave_secundaria(self.empresa, self.titulo, self.local)
 
     @property
     def senioridade(self) -> str:
